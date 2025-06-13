@@ -1,0 +1,15 @@
+[Unit]
+Description=Discord bot "Trogbot"
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=trogbot
+WorkingDirectory=/opt/trogbot
+ExecStart=/opt/trogbot/trogbot
+Environment=GO_ENV=prod
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
