@@ -7,32 +7,14 @@ import (
 	"syscall"
 
 	_ "github.com/smallblue2/trogbot/commands"
+	"github.com/smallblue2/trogbot/config"
 	"github.com/smallblue2/trogbot/registry"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/joho/godotenv"
 )
 
-var API_KEY string
-var GUILD_ID string
-
-const PREFIX string = "!"
-
-func loadEnv() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file!")
-	}
-	API_KEY = os.Getenv("TROGBOT_API_KEY")
-	GUILD_ID = os.Getenv("GUILD_ID")
-}
-
-func init() {
-	loadEnv()
-}
-
 func main() {
-	dg, err := discordgo.New("Bot " + API_KEY)
+	dg, err := discordgo.New("Bot " + config.DISCORD_API_KEY)
 	if err != nil {
 		log.Fatalf("Failed to create a bot discord session: %s", err)
 	}
@@ -47,7 +29,7 @@ func main() {
 
 		appID := s.State.User.ID
 		// Register commands specifically to our guild (quicker)
-		if _, err := s.ApplicationCommandBulkOverwrite(appID, GUILD_ID, registry.AllDefinitions()); err != nil {
+		if _, err := s.ApplicationCommandBulkOverwrite(appID, config.GUILD_ID, registry.AllDefinitions()); err != nil {
 			log.Fatalf("Failed to sync slash commands: %s\n", err)
 		}
 		// Wipe global commands (cleanup dev artefacts)
