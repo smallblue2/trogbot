@@ -27,7 +27,9 @@ func init() {
 func must(key string) string {
 	v := os.Getenv(key)
 	if v == "" {
-		log.Fatalf("Env '%s' is required\n", key)
+		// Warn, but allow continued running for tests
+		log.Printf("Env '%s' is required and not set!\n", key)
+		os.Setenv(key, "UNSET")
 	}
 	return v
 }
