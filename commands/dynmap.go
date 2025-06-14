@@ -3,7 +3,7 @@ Filename: dynmap.go
 Description: registers the commands defined by minecraft/dynmap.go
 Created by: osh
         at: 17:35 on Friday, the 13th of June, 2025.
-Last edited 15:31 on Saturday, the 14th of June, 2025.
+Last edited 16:36 on Saturday, the 14th of June, 2025.
 */
 
 package commands
@@ -145,7 +145,6 @@ func runAddMarker(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 
 	cmd := i.ApplicationCommandData()
 	return minecraft.AddMarker(cmd.Options)
-	return nil
 }
 
 func init() {
