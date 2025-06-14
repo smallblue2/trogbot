@@ -4,7 +4,7 @@ Description: interfaces with dynmap marker commands to allow for the
              creation, modification and deletion of dynmap markers
 Created by: osh
         at: 15:39 on Friday, the 13th of June, 2025.
-Last edited 14:31 on Saturday, the 14th of June, 2025.
+Last edited 15:30 on Saturday, the 14th of June, 2025.
 */
 
 package minecraft
@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 type Marker struct {
@@ -53,8 +55,41 @@ type MarkerWorld struct {
 	ShowBorder   bool
 }
 
-// // adds a marker given marker fields
-// func AddMarker(marker Marker) error
+// adds a marker given marker fields
+func AddMarker(slashCommandData []*discordgo.ApplicationCommandInteractionDataOption) error {
+	if len(slashCommandData) != 1 {
+		return fmt.Errorf("malformed application command")
+	}
+
+	var marker Marker
+	res := slashCommandData[0]
+	resOptions := res.Options
+	for _, option := range resOptions {
+		switch option.Name {
+		case "label":
+			marker.Label = option.StringValue()
+		case "id":
+			marker.Id = option.StringValue()
+		case "icon":
+			marker.Icon = option.StringValue()
+		case "set":
+			marker.Set = option.StringValue()
+		case "x":
+			marker.XCoord = int(option.IntValue())
+		case "y":
+			marker.YCoord = int(option.IntValue())
+		case "z":
+			marker.ZCoord = int(option.IntValue())
+		case "world":
+			marker.WorldName = option.StringValue()
+		default:
+			return fmt.Errorf("unrecognised option %v", option.Name)
+		}
+	}
+
+	PrintStruct(marker, "")
+	return nil
+}
 
 // // builds the `/dmarker add` command, allowing for optional fields
 // func buildAddMarker(marker Marker) (string, error)

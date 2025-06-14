@@ -3,14 +3,16 @@ Filename: dynmap.go
 Description: registers the commands defined by minecraft/dynmap.go
 Created by: osh
         at: 17:35 on Friday, the 13th of June, 2025.
-Last edited 19:48 on Friday, the 13th of June, 2025.
+Last edited 15:31 on Saturday, the 14th of June, 2025.
 */
 
 package commands
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/smallblue2/trogbot/minecraft"
@@ -43,7 +45,7 @@ func (dynmapCommand) Definition() *discordgo.ApplicationCommand {
 	markerIconChoices := make([]*discordgo.ApplicationCommandOptionChoice, len(markerIcons))
 	for i, icon := range markerIcons {
 		markerIconChoices[i] = &discordgo.ApplicationCommandOptionChoice{
-			Name:  icon.LabelName,
+			Name:  icon.Name,
 			Value: icon.Label,
 		}
 	}
@@ -138,7 +140,11 @@ func (dynmapCommand) Run(s *discordgo.Session, i *discordgo.InteractionCreate) e
 }
 
 func runAddMarker(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+	_, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	defer cancel()
 
+	cmd := i.ApplicationCommandData()
+	return minecraft.AddMarker(cmd.Options)
 	return nil
 }
 
