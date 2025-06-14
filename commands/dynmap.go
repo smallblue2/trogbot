@@ -131,20 +131,52 @@ func (dynmapCommand) Definition() *discordgo.ApplicationCommand {
 
 func (dynmapCommand) Run(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	sub := i.ApplicationCommandData().Options[0]
+	var msg string
+	var err error
 	switch sub.Name {
 	case "addmarker":
-		return runAddMarker(s, i)
+		msg, err = runAddMarker(s, i)
+		if err != nil {
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "Sorry, something went wrong while trying to add a marker!",
+					Flags:   discordgo.MessageFlagsEphemeral,
+				},
+			})
+			return err
+		}
 	default:
 		return fmt.Errorf("unknown sub-command")
 	}
+
+	return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: msg,
+		},
+	})
 }
 
-func runAddMarker(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+func runAddMarker(s *discordgo.Session, i *discordgo.InteractionCreate) (msg string, err error) {
 	_, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 	defer cancel()
 
 	cmd := i.ApplicationCommandData()
-	return minecraft.AddMarker(cmd.Options)
+	res, err := minecraft.AddMarker(cmd.Options)
+	if err != nil {
+		return
+	}
+
+	// default values if optional arguments are nonexistent for the response message
+	if res.Set == "" {
+		res.Set = "Markers"
+	}
+	if res.Icon == "" {
+		res.Icon = "default"
+	}
+
+	msg = fmt.Sprintf("✅ created marker %v/%v at %v, %v, %v in %v with icon %v", res.Set, res.Label, res.XCoord, res.YCoord, res.ZCoord, res.WorldName, res.Icon)
+	return
 }
 
 func init() {

@@ -4,7 +4,7 @@ Description: interfaces with dynmap marker commands to allow for the
              creation, modification and deletion of dynmap markers
 Created by: osh
         at: 15:39 on Friday, the 13th of June, 2025.
-Last edited 17:27 on Saturday, the 14th of June, 2025.
+Last edited 17:40 on Saturday, the 14th of June, 2025.
 */
 
 package minecraft
@@ -94,12 +94,12 @@ func execDmarkerAdd(marker Marker) (result string, err error) {
 }
 
 // adds a marker given marker fields
-func AddMarker(slashCommandData []*discordgo.ApplicationCommandInteractionDataOption) error {
+func AddMarker(slashCommandData []*discordgo.ApplicationCommandInteractionDataOption) (marker Marker, err error) {
 	if len(slashCommandData) != 1 {
-		return fmt.Errorf("malformed application command")
+		err = fmt.Errorf("malformed application command")
+		return
 	}
 
-	var marker Marker
 	res := slashCommandData[0]
 	resOptions := res.Options
 	for _, option := range resOptions {
@@ -121,12 +121,12 @@ func AddMarker(slashCommandData []*discordgo.ApplicationCommandInteractionDataOp
 		case "world":
 			marker.WorldName = option.StringValue()
 		default:
-			return fmt.Errorf("unrecognised option %v", option.Name)
+			err = fmt.Errorf("unrecognised option %v", option.Name)
+			return
 		}
 	}
 
-	PrintStruct(marker, "")
-	return nil
+	return
 }
 
 // retrieves the currently available worlds using `/dmap worldlist` to populat ethe slash command options
