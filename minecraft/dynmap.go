@@ -4,7 +4,7 @@ Description: interfaces with dynmap marker commands to allow for the
              creation, modification and deletion of dynmap markers
 Created by: osh
         at: 15:39 on Friday, the 13th of June, 2025.
-Last edited 17:40 on Saturday, the 14th of June, 2025.
+Last edited 22:07 on Saturday, the 14th of June, 2025.
 */
 
 package minecraft
@@ -56,14 +56,14 @@ type MarkerWorld struct {
 	ShowBorder   bool
 }
 
-// // builds the `/dmarker add` command, allowing for optional fields
+// builds the `/dmarker add` command, allowing for optional fields
 func execDmarkerAdd(marker Marker) (result string, err error) {
 	// we're not guaranteed that the order from the slash command is correct, so just build each sequentially
 	var parts []string
 
 	parts = append(parts, "dmarker add")
 
-	// optional id first
+	// optional id comes first
 	if marker.Id != "" {
 		parts = append(parts, fmt.Sprintf("id:%v", marker.Id))
 	}
@@ -100,6 +100,8 @@ func AddMarker(slashCommandData []*discordgo.ApplicationCommandInteractionDataOp
 		return
 	}
 
+	// option content can be given in an arbitrary order, with optional arguments arbitrarily filled
+	// save as a Marker by looking at the given name of the slash command field
 	res := slashCommandData[0]
 	resOptions := res.Options
 	for _, option := range resOptions {
@@ -135,19 +137,8 @@ func AddMarker(slashCommandData []*discordgo.ApplicationCommandInteractionDataOp
 // world <world id>: loaded=<bool>, enabled=<bool>, title=<the dimension name>, center=<x.x/y.y/z.z>, extrazoomout=<int>, sendpositon=<bool>, protected=<bool>, showborder=<bool>
 // eg:
 // world world_172429123: loaded=true, enabled=true, title=world, center=-32.0/70.0/-80.0, extrazoomout=2, sendhealth=true, sendposition=true, protected=false, showborder=true
-func execDmapWorldlist() (result string, err error) {
-	// result = `
-	// 		 world world: loaded=true, enabled=true, title=world, center=-32.0/70.0/-80.0, extrazoomout=2, sendhealth=true, sendposition=true, protected=false, showborder=true
-	// 		 world world_nether: loaded=true, enabled=true, title=the_nether, center=-32.0/70.0/-80.0, extrazoomout=2, sendhealth=true, sendposition=true, protected=false, showborder=true
-	// 		 world world_the_end: loaded=true, enabled=true, title=the_end, center=-32.0/70.0/-80.0, extrazoomout=2, sendhealth=true, sendposition=true, protected=false, showborder=true
-	// 		 `
-
-	result, err = minecraft.Exec("dmap worldlist")
-	return
-}
-
 func GetMarkerWorlds() (markerWorlds []MarkerWorld, err error) {
-	result, err := execDmapWorldlist()
+	result, err := Exec("dmap worldlist")
 	if err != nil {
 		return
 	}
@@ -191,34 +182,8 @@ func GetMarkerWorlds() (markerWorlds []MarkerWorld, err error) {
 // <label>: label:"<label>", builtin:<bool>
 // eg:
 // anchor: label:"anchor", builtin:true
-func execDmarkerIcons() (result string, err error) {
-	// result = `
-	// 		 anchor: label:"anchor", builtin:true
-	// 		 basket: label:"basket", builtin:true
-	// 		 bed: label:"bed", builtin:true
-	// 		 brick: label:"brick", builtin:true
-	// 		 compass: label:"compass", builtin:true
-	// 		 default: label:"default", builtin:true
-	// 		 diamond: label:"diamond", builtin:true
-	// 		 house: label:"house", builtin:true
-	// 		 lightbulb: label:"lightbulb", builtin:true
-	// 		 offlineuser: label:"offlineuser", builtin:true
-	// 		 pin: label:"pin", builtin:true
-	// 		 redbasket: label:"redbasket", builtin:true
-	// 		 sign: label:"sign", builtin:true
-	// 		 skull: label:"skull", builtin:true
-	// 		 tower: label:"tower", builtin:true
-	// 		 tree: label:"tree", builtin:true
-	// 		 world: label:"world", builtin:true
-	// 		 custom_shop: label:"Custom Shop Icon", builtin:false
-	// 		 `
-	result, err = minecraft.Exec("dmarker icons")
-
-	return
-}
-
 func GetMarkerIcons() (markerIcons []MarkerIcon, err error) {
-	result, err := execDmarkerIcons()
+	result, err := Exec("dmarker icons")
 	if err != nil {
 		return
 	}
@@ -246,21 +211,8 @@ func GetMarkerIcons() (markerIcons []MarkerIcon, err error) {
 // <marker set name>: label:"<label display name>", hide:<bool>, prio:<int>, deficon:<default icon name>
 // eg:
 // markers: label:"Markers", hide:false, prio:0, deficon:default
-func execDmarkerListsets() (result string, err error) {
-	// result = `
-	// 		 markers: label:"Markers", hide:false, prio:0, deficon:default
-	// 		 shops: label:"Shop Locations", hide:false, prio:10, deficon:basket
-	// 		 bases: label:"Player Bases", hide:false, prio:5, deficon:house
-	// 		 farms: label:"Farms", hide:true, prio:3, deficon:tree
-	// 		 warps: label:"Warp Points", hide:false, prio:15, deficon:compass
-	// 		 `
-	result, err = minecraft.Exec("dmarker listsets")
-
-	return
-}
-
 func GetMarkerSets() (markerSets []MarkerSet, err error) {
-	result, err := execDmarkerListsets()
+	result, err := Exec("dmarker listsets")
 	if err != nil {
 		return
 	}

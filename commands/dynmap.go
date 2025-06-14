@@ -3,7 +3,7 @@ Filename: dynmap.go
 Description: registers the commands defined by minecraft/dynmap.go
 Created by: osh
         at: 17:35 on Friday, the 13th of June, 2025.
-Last edited 16:36 on Saturday, the 14th of June, 2025.
+Last edited 22:01 on Saturday, the 14th of June, 2025.
 */
 
 package commands
@@ -22,10 +22,10 @@ import (
 type dynmapCommand struct{}
 
 func (dynmapCommand) Definition() *discordgo.ApplicationCommand {
-	// marker worlds, marker icons and marker sets need to be fetched from the server,
-	// but we have no error propagation so we log that no choices were set on error
-	// this is safe to do so because we will always get at least an empty list back
-
+	// marker worlds, marker icons and marker sets need to be fetched from the server
+	// the functions to do so can result in an error, however we can just log the
+	// error and proceed as normal safely, since we will always get at least an empty list back,
+	// with the slash command still getting created with no available choices
 	markerWorlds, err := minecraft.GetMarkerWorlds()
 	if err != nil {
 		log.Println("unable to retrieve dynmap worlds:", err)
@@ -135,18 +135,20 @@ func (dynmapCommand) Run(s *discordgo.Session, i *discordgo.InteractionCreate) e
 	var err error
 	switch sub.Name {
 	case "addmarker":
-		msg, err = runAddMarker(s, i)
-		if err != nil {
-			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Content: "Sorry, something went wrong while trying to add a marker!",
-					Flags:   discordgo.MessageFlagsEphemeral,
-				},
-			})
-			return err
-		}
+		msg, err = runAddMarker(i)
 	default:
-		return fmt.Errorf("unknown sub-command")
+		err = fmt.Errorf("unknown sub-command")
+	}
+
+	if err != nil {
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Sorry, something went wrong trying to add a marker!",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		return err
 	}
 
 	return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -157,7 +159,7 @@ func (dynmapCommand) Run(s *discordgo.Session, i *discordgo.InteractionCreate) e
 	})
 }
 
-func runAddMarker(s *discordgo.Session, i *discordgo.InteractionCreate) (msg string, err error) {
+func runAddMarker(i *discordgo.InteractionCreate) (msg string, err error) {
 	_, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 	defer cancel()
 
@@ -175,7 +177,7 @@ func runAddMarker(s *discordgo.Session, i *discordgo.InteractionCreate) (msg str
 		res.Icon = "default"
 	}
 
-	msg = fmt.Sprintf("✅ created marker %v/%v at %v, %v, %v in %v with icon %v", res.Set, res.Label, res.XCoord, res.YCoord, res.ZCoord, res.WorldName, res.Icon)
+	msg = fmt.Sprintf("✅ Created marker `%v/%v` at [%v, %v, %v] on map `%v` with a %v icon.", res.Set, res.Label, res.XCoord, res.YCoord, res.ZCoord, res.WorldName, res.Icon)
 	return
 }
 
