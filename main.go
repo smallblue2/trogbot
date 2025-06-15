@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -9,6 +10,7 @@ import (
 	_ "github.com/smallblue2/trogbot/commands"
 	"github.com/smallblue2/trogbot/config"
 	"github.com/smallblue2/trogbot/registry"
+	"github.com/smallblue2/trogbot/server"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -18,6 +20,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create a bot discord session: %s", err)
 	}
+	config.DISCORD_SESSION = dg
 
 	// Handlers
 
@@ -60,6 +63,15 @@ func main() {
 		log.Fatalf("Failed to open websocket to Discord: %s", err)
 	}
 	log.Printf("Bot is up.")
+
+	// Start notif server
+	go func() {
+		server.StartServer()
+		log.Printf("Starting backup notification server on %s\n", config.NOTIF_SERVER_PORT)
+		if err := http.ListenAndServe(config.NOTIF_SERVER_PORT, nil); err != nil {
+			log.Fatalf("HTTP server error: %s\n", err)
+		}
+	}()
 
 	// Keep the websocket open unless SIGINT or SIGTERM
 	stop := make(chan os.Signal, 1)
