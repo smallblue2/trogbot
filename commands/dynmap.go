@@ -3,7 +3,7 @@ Filename: dynmap.go
 Description: registers the commands defined by minecraft/dynmap.go
 Created by: osh
         at: 17:35 on Friday, the 13th of June, 2025.
-Last edited 22:01 on Saturday, the 14th of June, 2025.
+Last edited 19:07 on Sunday, the 15th of June, 2025.
 */
 
 package commands
@@ -12,6 +12,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -35,18 +36,6 @@ func (dynmapCommand) Definition() *discordgo.ApplicationCommand {
 		markerWorldChoices[i] = &discordgo.ApplicationCommandOptionChoice{
 			Name:  world.Title,
 			Value: world.Title,
-		}
-	}
-
-	markerIcons, err := minecraft.GetMarkerIcons()
-	if err != nil {
-		log.Println("unable to retrieve marker icons:", err)
-	}
-	markerIconChoices := make([]*discordgo.ApplicationCommandOptionChoice, len(markerIcons))
-	for i, icon := range markerIcons {
-		markerIconChoices[i] = &discordgo.ApplicationCommandOptionChoice{
-			Name:  icon.Name,
-			Value: icon.Label,
 		}
 	}
 
@@ -109,11 +98,11 @@ func (dynmapCommand) Definition() *discordgo.ApplicationCommand {
 						Required:    false,
 					},
 					{
-						Type:        discordgo.ApplicationCommandOptionString,
-						Name:        "icon",
-						Description: "The icon displayed for this marker on the map.",
-						Required:    false,
-						Choices:     markerIconChoices,
+						Type:         discordgo.ApplicationCommandOptionString,
+						Name:         "icon",
+						Description:  "The icon displayed for this marker on the map.",
+						Required:     false,
+						Autocomplete: true,
 					},
 					{
 						Type:        discordgo.ApplicationCommandOptionString,
@@ -155,6 +144,68 @@ func (dynmapCommand) Run(s *discordgo.Session, i *discordgo.InteractionCreate) e
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Content: msg,
+		},
+	})
+}
+
+func (dynmapCommand) HandleAutocomplete(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+	sub := i.ApplicationCommandData().Options[0]
+
+	if sub.Name != "addmarker" {
+		return nil
+	}
+
+	var focused *discordgo.ApplicationCommandInteractionDataOption
+	for _, option := range sub.Options {
+		if option.Focused {
+			focused = option
+			break
+		}
+	}
+
+	switch focused.Name {
+	case "icon":
+		return handleIconAutocomplete(s, i, focused.StringValue())
+	}
+
+	return nil
+}
+
+// automatically provides autocomplete options for the users typed text using icons fetched from the server
+func handleIconAutocomplete(s *discordgo.Session, i *discordgo.InteractionCreate, content string) error {
+	markerIcons, err := minecraft.GetMarkerIcons()
+	if err != nil {
+		// no results from the server means we give back an empty set of available choices
+		return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionApplicationCommandAutocompleteResult,
+			Data: &discordgo.InteractionResponseData{
+				Choices: []*discordgo.ApplicationCommandOptionChoice{},
+			},
+		})
+	}
+
+	content = strings.ToLower(content)
+	var choices []*discordgo.ApplicationCommandOptionChoice
+
+	for _, icon := range markerIcons {
+		// since strings.Contains matches on empty string, this will also populate the choices if the user has not typed anything
+		if strings.Contains(strings.ToLower(icon.Name), content) || strings.Contains(strings.ToLower(icon.Label), content) {
+			choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
+				Name:  icon.Name,
+				Value: icon.Label,
+			})
+		}
+
+		// discord has a hard limit of 25 choices, will refuse to register handler if provided with more
+		if len(choices) >= 25 {
+			break
+		}
+	}
+
+	return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionApplicationCommandAutocompleteResult,
+		Data: &discordgo.InteractionResponseData{
+			Choices: choices,
 		},
 	})
 }
