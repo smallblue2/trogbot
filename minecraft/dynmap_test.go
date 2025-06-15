@@ -3,7 +3,7 @@ Filename: dynmap_test.go
 Description: test cases for select dynmap functions
 Created by: osh
         at: 11:32 on Sunday, the 15th of June, 2025.
-Last edited 13:13 on Sunday, the 15th of June, 2025.
+Last edited 13:31 on Sunday, the 15th of June, 2025.
 */
 
 package minecraft
@@ -232,6 +232,20 @@ func TestParseMarkerSets(t *testing.T) {
 					Priority:    0,
 					DefaultIcon: "default",
 					Persistent:  true,
+				},
+			},
+		},
+		{
+			name:  "no persistent field",
+			input: `markers: label:"Markers", hide:false, prio:0, deficon:default`,
+			wantE: false,
+			wants: []MarkerSet{
+				{
+					Name:        "markers",
+					Label:       "Markers",
+					Hide:        false,
+					Priority:    0,
+					DefaultIcon: "default",
 				},
 			},
 		},
