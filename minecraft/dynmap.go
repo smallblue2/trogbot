@@ -4,7 +4,7 @@ Description: interfaces with dynmap marker commands to allow for the
              creation, modification and deletion of dynmap markers
 Created by: osh
         at: 15:39 on Friday, the 13th of June, 2025.
-Last edited 12:30 on Sunday, the 15th of June, 2025.
+Last edited 13:27 on Sunday, the 15th of June, 2025.
 */
 
 package minecraft
@@ -41,6 +41,7 @@ type MarkerSet struct {
 	Hide        bool
 	Priority    int
 	DefaultIcon string
+	Persistent  bool
 }
 
 type MarkerWorld struct {
@@ -138,20 +139,13 @@ func AddMarker(slashCommandData []*discordgo.ApplicationCommandInteractionDataOp
 // eg:
 // world world_172429123: loaded=true, enabled=true, title=world, center=-32.0/70.0/-80.0, extrazoomout=2, sendhealth=true, sendposition=true, protected=false, showborder=true
 func parseMarkerWorlds(result string) (markerWorlds []MarkerWorld, err error) {
-	re := regexp.MustCompile(`world ([\w\-]+): loaded=(\w+), enabled=(\w+), title=(\w+), center=([\d\.\-/]+), extrazoomout=(\d+), sendhealth=(\w+), sendposition=(\w+), protected=(\w+), showborder=(\w+)`)
+	re := regexp.MustCompile(`world ([\w\-]+): loaded=(true|false), enabled=(true|false), title=(\w+), center=([\d\.\-/]+), extrazoomout=(\d+), sendhealth=(true|false), sendposition=(true|false), protected=(true|false), showborder=(true|false)`)
 	matches := re.FindAllStringSubmatch(result, -1)
 	var extraZoomOut int
 	for _, match := range matches {
 		extraZoomOut, err = strconv.Atoi(match[6])
 		if err != nil {
 			return
-		}
-
-		// just check that the bools are actually bools
-		for i, m := range []string{match[2], match[3], match[7], match[8], match[9], match[10]} {
-			if m != "true" && m != "false" {
-				return markerWorlds, fmt.Errorf("unable to parse %v as bool for match %v\n", m, i)
-			}
 		}
 
 		markerWorlds = append(markerWorlds, MarkerWorld{
@@ -187,13 +181,9 @@ func GetMarkerWorlds() (markerWorlds []MarkerWorld, err error) {
 // eg:
 // anchor: label:"anchor", builtin:true
 func parseMarkerIcons(result string) (markerIcons []MarkerIcon, err error) {
-	re := regexp.MustCompile(`(\w+): label:"([^"]+)", builtin:(\w+)`)
+	re := regexp.MustCompile(`(\w+): label:"([^"]+)", builtin:(true|false)`)
 	matches := re.FindAllStringSubmatch(result, -1)
 	for _, match := range matches {
-		if match[3] != "true" && match[3] != "false" {
-			return markerIcons, fmt.Errorf("unable to parse %v as bool\n", match[3])
-		}
-
 		markerIcons = append(markerIcons, MarkerIcon{
 			Name:    match[1],
 			Label:   match[2],
@@ -220,7 +210,7 @@ func GetMarkerIcons() (markerIcons []MarkerIcon, err error) {
 // eg:
 // markers: label:"Markers", hide:false, prio:0, deficon:default
 func parseMarkerSets(result string) (markerSets []MarkerSet, err error) {
-	re := regexp.MustCompile(`(\w+): label:"([^"]+)", hide:(\w+), prio:(\d+), deficon:(\w+)(?:, persistent=\w+)?`)
+	re := regexp.MustCompile(`(\w+): label:"([^"]+)", hide:(true|false), prio:(\d+), deficon:(\w+)(?:, persistent=(true|false))?`)
 	matches := re.FindAllStringSubmatch(result, -1)
 	var priority int
 	for _, match := range matches {
@@ -228,8 +218,11 @@ func parseMarkerSets(result string) (markerSets []MarkerSet, err error) {
 		if err != nil {
 			return
 		}
-		if match[3] != "true" && match[3] != "false" {
-			return markerSets, fmt.Errorf("unable to parse %v as bool\n", match[3])
+
+		// persistent field is optional
+		var persistent bool
+		if len(match) > 6 && match[6] != "" {
+			persistent = match[6] == "true"
 		}
 
 		markerSets = append(markerSets, MarkerSet{
@@ -238,6 +231,7 @@ func parseMarkerSets(result string) (markerSets []MarkerSet, err error) {
 			Hide:        match[3] == "true",
 			Priority:    priority,
 			DefaultIcon: match[5],
+			Persistent:  persistent,
 		})
 	}
 
