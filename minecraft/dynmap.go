@@ -4,7 +4,7 @@ Description: interfaces with dynmap marker commands to allow for the
              creation, modification and deletion of dynmap markers
 Created by: osh
         at: 15:39 on Friday, the 13th of June, 2025.
-Last edited 22:07 on Saturday, the 14th of June, 2025.
+Last edited 12:30 on Sunday, the 15th of June, 2025.
 */
 
 package minecraft
@@ -137,13 +137,8 @@ func AddMarker(slashCommandData []*discordgo.ApplicationCommandInteractionDataOp
 // world <world id>: loaded=<bool>, enabled=<bool>, title=<the dimension name>, center=<x.x/y.y/z.z>, extrazoomout=<int>, sendpositon=<bool>, protected=<bool>, showborder=<bool>
 // eg:
 // world world_172429123: loaded=true, enabled=true, title=world, center=-32.0/70.0/-80.0, extrazoomout=2, sendhealth=true, sendposition=true, protected=false, showborder=true
-func GetMarkerWorlds() (markerWorlds []MarkerWorld, err error) {
-	result, err := Exec("dmap worldlist")
-	if err != nil {
-		return
-	}
-
-	re := regexp.MustCompile(`world (\w+): loaded=(\w+), enabled=(\w+), title=(\w+), center=([\d\.\-/]+), extrazoomout=(\d+), sendhealth=(\w+), sendposition=(\w+), protected=(\w+), showborder=(\w+)`)
+func parseMarkerWorlds(result string) (markerWorlds []MarkerWorld, err error) {
+	re := regexp.MustCompile(`world ([\w\-]+): loaded=(\w+), enabled=(\w+), title=(\w+), center=([\d\.\-/]+), extrazoomout=(\d+), sendhealth=(\w+), sendposition=(\w+), protected=(\w+), showborder=(\w+)`)
 	matches := re.FindAllStringSubmatch(result, -1)
 	var extraZoomOut int
 	for _, match := range matches {
@@ -153,9 +148,9 @@ func GetMarkerWorlds() (markerWorlds []MarkerWorld, err error) {
 		}
 
 		// just check that the bools are actually bools
-		for _, m := range []string{match[2], match[3], match[7], match[8], match[9], match[10]} {
+		for i, m := range []string{match[2], match[3], match[7], match[8], match[9], match[10]} {
 			if m != "true" && m != "false" {
-				return markerWorlds, fmt.Errorf("unable to parse %v as bool\n", match[3])
+				return markerWorlds, fmt.Errorf("unable to parse %v as bool for match %v\n", m, i)
 			}
 		}
 
@@ -176,18 +171,22 @@ func GetMarkerWorlds() (markerWorlds []MarkerWorld, err error) {
 	return
 }
 
+func GetMarkerWorlds() (markerWorlds []MarkerWorld, err error) {
+	result, err := Exec("dmap worldlist")
+	if err != nil {
+		return
+	}
+
+	return parseMarkerWorlds(result)
+}
+
 // retrieves currently available marker icons using `/dmarker icons` to populate the slash command options
 // looks like (newline seperated):
 //
 // <label>: label:"<label>", builtin:<bool>
 // eg:
 // anchor: label:"anchor", builtin:true
-func GetMarkerIcons() (markerIcons []MarkerIcon, err error) {
-	result, err := Exec("dmarker icons")
-	if err != nil {
-		return
-	}
-
+func parseMarkerIcons(result string) (markerIcons []MarkerIcon, err error) {
 	re := regexp.MustCompile(`(\w+): label:"([^"]+)", builtin:(\w+)`)
 	matches := re.FindAllStringSubmatch(result, -1)
 	for _, match := range matches {
@@ -205,19 +204,23 @@ func GetMarkerIcons() (markerIcons []MarkerIcon, err error) {
 	return
 }
 
+func GetMarkerIcons() (markerIcons []MarkerIcon, err error) {
+	result, err := Exec("dmarker icons")
+	if err != nil {
+		return
+	}
+
+	return parseMarkerIcons(result)
+}
+
 // retrieves currently available marker sets using `/dmarker listsets` to populate the slash command options
 // looks like (newline seperated):
 //
 // <marker set name>: label:"<label display name>", hide:<bool>, prio:<int>, deficon:<default icon name>
 // eg:
 // markers: label:"Markers", hide:false, prio:0, deficon:default
-func GetMarkerSets() (markerSets []MarkerSet, err error) {
-	result, err := Exec("dmarker listsets")
-	if err != nil {
-		return
-	}
-
-	re := regexp.MustCompile(`(\w+): label:"([^"]+)", hide:(\w+), prio:(\d+), deficon:(\w+)`)
+func parseMarkerSets(result string) (markerSets []MarkerSet, err error) {
+	re := regexp.MustCompile(`(\w+): label:"([^"]+)", hide:(\w+), prio:(\d+), deficon:(\w+)(?:, persistent=\w+)?`)
 	matches := re.FindAllStringSubmatch(result, -1)
 	var priority int
 	for _, match := range matches {
@@ -239,4 +242,13 @@ func GetMarkerSets() (markerSets []MarkerSet, err error) {
 	}
 
 	return
+}
+
+func GetMarkerSets() (markerSets []MarkerSet, err error) {
+	result, err := Exec("dmarker listsets")
+	if err != nil {
+		return
+	}
+
+	return parseMarkerSets(result)
 }
