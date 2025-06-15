@@ -3,7 +3,7 @@ Filename: dynmap.go
 Description: registers the commands defined by minecraft/dynmap.go
 Created by: osh
         at: 17:35 on Friday, the 13th of June, 2025.
-Last edited 19:07 on Sunday, the 15th of June, 2025.
+Last edited 19:04 on Sunday, the 15th of June, 2025.
 */
 
 package commands
@@ -31,24 +31,57 @@ func (dynmapCommand) Definition() *discordgo.ApplicationCommand {
 	if err != nil {
 		log.Println("unable to retrieve dynmap worlds:", err)
 	}
-	markerWorldChoices := make([]*discordgo.ApplicationCommandOptionChoice, len(markerWorlds))
-	for i, world := range markerWorlds {
-		markerWorldChoices[i] = &discordgo.ApplicationCommandOptionChoice{
-			Name:  world.Title,
-			Value: world.Title,
+	// choices become autocomplete options if we have more than 25, following discord's restrictions
+	markerWorldOption := func() *discordgo.ApplicationCommandOption {
+		opt := &discordgo.ApplicationCommandOption{
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        "world",
+			Description: "The dimension to add the marker to.",
+			Required:    true,
 		}
+
+		if len(markerWorlds) > 25 {
+			opt.Autocomplete = true
+			return opt
+		}
+
+		markerWorldChoices := make([]*discordgo.ApplicationCommandOptionChoice, len(markerWorlds))
+		for i, world := range markerWorlds {
+			markerWorldChoices[i] = &discordgo.ApplicationCommandOptionChoice{
+				Name:  world.Title,
+				Value: world.Title,
+			}
+		}
+		opt.Choices = markerWorldChoices
+		return opt
 	}
 
 	markerSets, err := minecraft.GetMarkerSets()
 	if err != nil {
 		log.Println("unable to retrieve marker sets:", err)
 	}
-	markerSetChoices := make([]*discordgo.ApplicationCommandOptionChoice, len(markerSets))
-	for i, set := range markerSets {
-		markerSetChoices[i] = &discordgo.ApplicationCommandOptionChoice{
-			Name:  set.Label,
-			Value: set.Name,
+	markerSetOption := func() *discordgo.ApplicationCommandOption {
+		opt := &discordgo.ApplicationCommandOption{
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        "set",
+			Description: "The marker set that this marker belongs to.",
+			Required:    false,
 		}
+
+		if len(markerSets) > 25 {
+			opt.Autocomplete = true
+			return opt
+		}
+
+		markerSetChoices := make([]*discordgo.ApplicationCommandOptionChoice, len(markerSets))
+		for i, set := range markerSets {
+			markerSetChoices[i] = &discordgo.ApplicationCommandOptionChoice{
+				Name:  set.Label,
+				Value: set.Name,
+			}
+		}
+		opt.Choices = markerSetChoices
+		return opt
 	}
 
 	return &discordgo.ApplicationCommand{
@@ -84,13 +117,7 @@ func (dynmapCommand) Definition() *discordgo.ApplicationCommand {
 						Description: "The z-coordinate on the map to create the marker at.",
 						Required:    true,
 					},
-					{
-						Type:        discordgo.ApplicationCommandOptionString,
-						Name:        "world",
-						Description: "The dimension to add the marker to.",
-						Required:    true,
-						Choices:     markerWorldChoices,
-					},
+					markerWorldOption(),
 					{
 						Type:        discordgo.ApplicationCommandOptionString,
 						Name:        "id",
@@ -104,13 +131,7 @@ func (dynmapCommand) Definition() *discordgo.ApplicationCommand {
 						Required:     false,
 						Autocomplete: true,
 					},
-					{
-						Type:        discordgo.ApplicationCommandOptionString,
-						Name:        "set",
-						Description: "The marker set that this marker belongs to.",
-						Required:    false,
-						Choices:     markerSetChoices,
-					},
+					markerSetOption(),
 				},
 			},
 		},
@@ -164,11 +185,50 @@ func (dynmapCommand) HandleAutocomplete(s *discordgo.Session, i *discordgo.Inter
 	}
 
 	switch focused.Name {
+	case "world":
+		return handleWorldAutocomplete(s, i, focused.StringValue())
 	case "icon":
 		return handleIconAutocomplete(s, i, focused.StringValue())
+	case "set":
+		return handleSetAutocomplete(s, i, focused.StringValue())
 	}
 
 	return nil
+}
+
+func handleWorldAutocomplete(s *discordgo.Session, i *discordgo.InteractionCreate, content string) error {
+	markerWorlds, err := minecraft.GetMarkerWorlds()
+	if err != nil {
+		return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionApplicationCommandAutocompleteResult,
+			Data: &discordgo.InteractionResponseData{
+				Choices: []*discordgo.ApplicationCommandOptionChoice{},
+			},
+		})
+	}
+
+	content = strings.ToLower(content)
+	var choices []*discordgo.ApplicationCommandOptionChoice
+
+	for _, world := range markerWorlds {
+		if strings.Contains(strings.ToLower(world.Name), content) || strings.Contains(strings.ToLower(world.Title), content) {
+			choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
+				Name:  world.Title,
+				Value: world.Title,
+			})
+		}
+
+		if len(choices) >= 25 {
+			break
+		}
+	}
+
+	return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionApplicationCommandAutocompleteResult,
+		Data: &discordgo.InteractionResponseData{
+			Choices: choices,
+		},
+	})
 }
 
 // automatically provides autocomplete options for the users typed text using icons fetched from the server
@@ -197,6 +257,41 @@ func handleIconAutocomplete(s *discordgo.Session, i *discordgo.InteractionCreate
 		}
 
 		// discord has a hard limit of 25 choices, will refuse to register handler if provided with more
+		if len(choices) >= 25 {
+			break
+		}
+	}
+
+	return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionApplicationCommandAutocompleteResult,
+		Data: &discordgo.InteractionResponseData{
+			Choices: choices,
+		},
+	})
+}
+
+func handleSetAutocomplete(s *discordgo.Session, i *discordgo.InteractionCreate, content string) error {
+	markerSets, err := minecraft.GetMarkerSets()
+	if err != nil {
+		return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionApplicationCommandAutocompleteResult,
+			Data: &discordgo.InteractionResponseData{
+				Choices: []*discordgo.ApplicationCommandOptionChoice{},
+			},
+		})
+	}
+
+	content = strings.ToLower(content)
+	var choices []*discordgo.ApplicationCommandOptionChoice
+
+	for _, set := range markerSets {
+		if strings.Contains(strings.ToLower(set.Label), content) || strings.Contains(strings.ToLower(set.Name), content) {
+			choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
+				Name:  set.Label,
+				Value: set.Name,
+			})
+		}
+
 		if len(choices) >= 25 {
 			break
 		}
