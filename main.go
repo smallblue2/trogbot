@@ -41,18 +41,32 @@ func main() {
 
 	// Interaction Handler for commands
 	dg.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		if i.Type != discordgo.InteractionApplicationCommand {
-			return
-		}
+		switch i.Type {
+		case discordgo.InteractionApplicationCommand:
+			cmdName := i.ApplicationCommandData().Name
+			if cmd, ok := registry.Lookup(cmdName); ok {
+				log.Printf("User '%s' ran command '%s'\n", i.Member.DisplayName(), cmdName)
+				err = cmd.Run(s, i)
+				if err != nil {
+					log.Printf("Failed to run command '%s': %s\n", cmdName, err)
+				}
+			}
 
-		cmdName := i.ApplicationCommandData().Name
-		if cmd, ok := registry.Lookup(cmdName); ok {
-			log.Printf("User '%s' ran command '%s'\n", i.Member.DisplayName(), cmdName)
-			err = cmd.Run(s, i)
-			if err != nil {
-				log.Printf("Failed to run command '%s': %s\n", cmdName, err)
+		case discordgo.InteractionApplicationCommandAutocomplete:
+			cmdName := i.ApplicationCommandData().Name
+			if cmd, ok := registry.Lookup(cmdName); ok {
+				// check if the command implements autocomplete first
+				if autoCompleteCmd, hasAutoComplete := cmd.(interface {
+					HandleAutocomplete(s *discordgo.Session, i *discordgo.InteractionCreate) error
+				}); hasAutoComplete {
+					err = autoCompleteCmd.HandleAutocomplete(s, i)
+					if err != nil {
+						log.Printf("Failed to handle autocomplete for '%s': %s\n", cmdName, err)
+					}
+				}
 			}
 		}
+
 	})
 
 	// Open Websocket
